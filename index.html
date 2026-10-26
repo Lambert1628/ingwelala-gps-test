@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d1510">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="GPS Test">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Ingwelala GPS Test</title>
+<style>
+  :root{
+    --bg:#0d1510; --panel:#16211a; --panel2:#1d2b22; --line:#2b3d31;
+    --ink:#e8f0ea; --dim:#8da395; --good:#49d17a; --warn:#f0b429; --bad:#ef5a5a;
+    --accent:#7fd4a2;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    padding:env(safe-area-inset-top) 16px calc(24px + env(safe-area-inset-bottom));
+    max-width:620px; margin:0 auto;
+  }
+  h1{font-size:17px;margin:18px 0 2px;letter-spacing:.02em}
+  .sub{color:var(--dim);font-size:13px;margin:0 0 16px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+  .hero{text-align:center;padding:20px 14px}
+  .acc{font-size:68px;line-height:1;font-weight:650;font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+  .acc small{font-size:22px;font-weight:500;color:var(--dim);margin-left:4px}
+  .verdict{margin-top:10px;font-size:15px;font-weight:600}
+  .state{display:inline-block;margin-top:8px;font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .grid div{background:var(--panel);padding:11px 12px}
+  .k{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--dim)}
+  .v{font-size:19px;font-variant-numeric:tabular-nums;margin-top:3px;word-break:break-all}
+  .bars{display:flex;align-items:flex-end;gap:2px;height:56px;margin-top:4px}
+  .bars i{flex:1;min-width:2px;border-radius:1px 1px 0 0;display:block}
+  .legend{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-top:6px}
+  button{
+    font:inherit;font-weight:600;color:var(--ink);background:var(--panel2);
+    border:1px solid var(--line);border-radius:11px;padding:14px 16px;width:100%;cursor:pointer
+  }
+  button:active{background:#243428}
+  button.primary{background:var(--accent);color:#0a150e;border-color:var(--accent)}
+  button.danger{background:#3a1f1f;border-color:#5a2c2c;color:#ffc9c9}
+  button[disabled]{opacity:.45}
+  .row3{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+  h2{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim);margin:0 0 10px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  td{padding:5px 0;vertical-align:top;border-bottom:1px solid var(--line)}
+  td:first-child{color:var(--dim);width:42%}
+  tr:last-child td{border-bottom:0}
+  .ok{color:var(--good)} .wn{color:var(--warn)} .bd{color:var(--bad)}
+  .note{font-size:13px;color:var(--dim);margin-top:10px}
+  #log{font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;color:var(--dim);
+       max-height:150px;overflow:auto;white-space:pre-wrap;word-break:break-word}
+  .pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;
+        background:var(--panel2);border:1px solid var(--line);color:var(--dim)}
+</style>
+</head>
+<body>
+
+<h1>Ingwelala &mdash; GPS check</h1>
+<p class="sub">Drive a few roads with this open. It records how well your phone actually sees the satellites out there.</p>
+
+<div class="card hero">
+  <div class="acc" id="acc">&mdash;<small>m</small></div>
+  <div class="verdict" id="verdict">Not started</div>
+  <div class="state" id="fixstate">press start</div>
+</div>
+
+<button class="primary" id="btnStart">Start GPS</button>
+
+<div class="row3">
+  <button id="btnLog" disabled>Record trace</button>
+  <button id="btnWake" disabled>Keep screen on</button>
+</div>
+
+<div class="card" style="margin-top:12px">
+  <h2>Position</h2>
+  <div class="grid">
+    <div><div class="k">Latitude</div><div class="v" id="lat">&mdash;</div></div>
+    <div><div class="k">Longitude</div><div class="v" id="lon">&mdash;</div></div>
+    <div><div class="k">Speed</div><div class="v" id="spd">&mdash;</div></div>
+    <div><div class="k">Heading</div><div class="v" id="hdg">&mdash;</div></div>
+    <div><div class="k">Altitude</div><div class="v" id="alt">&mdash;</div></div>
+    <div><div class="k">Fix age</div><div class="v" id="age">&mdash;</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Accuracy over time</h2>
+  <div class="bars" id="bars"></div>
+  <div class="legend"><span id="barsNote">no fixes yet</span><span id="barsMax"></span></div>
+</div>
+
+<div class="card">
+  <h2>Session</h2>
+  <div class="grid">
+    <div><div class="k">Fixes</div><div class="v" id="nfix">0</div></div>
+    <div><div class="k">Fix rate</div><div class="v" id="rate">&mdash;</div></div>
+    <div><div class="k">Best / median</div><div class="v" id="bestmed">&mdash;</div></div>
+    <div><div class="k">Dropouts</div><div class="v" id="drops">0</div></div>
+    <div><div class="k">Trace points</div><div class="v" id="npts">0</div></div>
+    <div><div class="k">Distance</div><div class="v" id="dist">0.00 km</div></div>
+  </div>
+  <div class="row3">
+    <button id="btnGeo" disabled>Save trace file</button>
+    <button id="btnCopy" disabled>Copy report</button>
+  </div>
+  <button class="danger" id="btnReset" style="margin-top:10px">Reset session</button>
+</div>
+
+<div class="card">
+  <h2>This phone</h2>
+  <table id="diag"></table>
+  <p class="note" id="installNote"></p>
+</div>
+
+<div class="card">
+  <h2>Event log</h2>
+  <div id="log">waiting&hellip;</div>
+</div>
+
+<p class="sub" style="text-align:center">
+  <span class="pill" id="ver">v1</span>
+  Add to Home Screen, then reopen from the icon &mdash; that is how the real app will run.
+</p>
+
+<script>
+(function(){
+  "use strict";
+
+  var ACC_GOOD = 15, ACC_OK = 35, ACC_POOR = 100;
+  var MAX_BARS = 70;
+
+  var S = {
+    watchId:null, running:false, logging:false, wakeLock:null,
+    fixes:[],
+    trace:[],
+    lastFixAt:null, dropouts:0, startedAt:null, errors:0
+  };
+
+  function $(id){ return document.getElementById(id); }
+  function fmt(n, d){ return (n===null||n===undefined||isNaN(n)) ? "—" : Number(n).toFixed(d===undefined?1:d); }
+  function pad(n){ return n<10 ? "0"+n : ""+n; }
+  function clock(t){ var d=new Date(t); return pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds()); }
+
+  var logLines = [];
+  function log(msg){
+    logLines.unshift(clock(Date.now())+"  "+msg);
+    if (logLines.length > 120) logLines.pop();
+    $("log").textContent = logLines.join("\n");
+  }
+
+  function haversine(a, b){
+    var R = 6371000, toR = Math.PI/180;
+    var dLat = (b.lat-a.lat)*toR, dLon = (b.lon-a.lon)*toR;
+    var la1 = a.lat*toR, la2 = b.lat*toR;
+    var h = Math.sin(dLat/2)*Math.sin(dLat/2) +
+            Math.cos(la1)*Math.cos(la2)*Math.sin(dLon/2)*Math.sin(dLon/2);
+    return 2*R*Math.asin(Math.sqrt(h));
+  }
+
+  function start(){
+    if (!("geolocation" in navigator)) { log("this browser has no geolocation at all"); return; }
+    if (!window.isSecureContext) { log("NOT a secure context - geolocation will be refused"); }
+    S.running = true;
+    S.startedAt = S.startedAt || Date.now();
+    $("btnStart").textContent = "Stop GPS";
+    $("btnStart").className = "";
+    $("btnLog").disabled = false;
+    $("btnWake").disabled = false;
+    $("fixstate").textContent = "waiting for first fix";
+    log("watchPosition started (enableHighAccuracy)");
+    S.watchId = navigator.geolocation.watchPosition(onFix, onErr, {
+      enableHighAccuracy: true,
+      maximumAge: 0,
+      timeout: 60000
+    });
+  }
+
+  function stop(){
+    if (S.watchId !== null) navigator.geolocation.clearWatch(S.watchId);
+    S.watchId = null; S.running = false;
+    $("btnStart").textContent = "Start GPS";
+    $("btnStart").className = "primary";
+    $("fixstate").textContent = "stopped";
+    log("watch stopped");
+  }
+
+  function onFix(p){
+    var now = Date.now();
+    var c = p.coords;
+
+    if (S.lastFixAt && now - S.lastFixAt > 15000){
+      S.dropouts++;
+      log("gap of " + Math.round((now-S.lastFixAt)/1000) + "s between fixes");
+    }
+    S.lastFixAt = now;
+    S.fixes.push({ t: now, acc: c.accuracy });
+    if (S.fixes.length === 1) log("first fix after " +
+        Math.round((now - S.startedAt)/1000) + "s, accuracy " + Math.round(c.accuracy) + "m");
+
+    var pt = {
+      t: p.timestamp || now,
+      lat: c.latitude, lon: c.longitude, acc: c.accuracy,
+      alt: c.altitude, spd: c.speed, hdg: c.heading
+    };
+    if (S.logging) S.trace.push(pt);
+
+    render(pt);
+  }
+
+  function onErr(e){
+    S.errors++;
+    var names = {1:"PERMISSION_DENIED", 2:"POSITION_UNAVAILABLE", 3:"TIMEOUT"};
+    log("ERROR " + (names[e.code]||e.code) + ": " + e.message);
+    $("fixstate").textContent = (names[e.code]||"error").toLowerCase().replace(/_/g," ");
+    if (e.code === 1){
+      $("verdict").textContent = "Location permission refused";
+      $("verdict").className = "verdict bd";
+    }
+    refreshDiag();
+  }
+
+  function render(pt){
+    $("acc").innerHTML = Math.round(pt.acc) + "<small>m</small>";
+
+    var v = $("verdict"), cls, txt;
+    if (pt.acc <= ACC_GOOD)      { cls="ok"; txt="Good GPS fix - plenty for a game drive"; }
+    else if (pt.acc <= ACC_OK)   { cls="ok"; txt="Usable fix"; }
+    else if (pt.acc <= ACC_POOR) { cls="wn"; txt="Weak fix - position may wander"; }
+    else                         { cls="bd"; txt="Coarse fix - this is network, not satellite"; }
+    v.textContent = txt; v.className = "verdict " + cls;
+    $("fixstate").textContent = S.logging ? "recording" : "live";
+
+    $("lat").textContent = pt.lat.toFixed(6);
+    $("lon").textContent = pt.lon.toFixed(6);
+    $("spd").textContent = (pt.spd === null || pt.spd === undefined || isNaN(pt.spd))
+        ? "—" : fmt(pt.spd * 3.6, 1) + " km/h";
+    $("hdg").textContent = (pt.hdg === null || pt.hdg === undefined || isNaN(pt.hdg))
+        ? "—" : Math.round(pt.hdg) + "°";
+    $("alt").textContent = (pt.alt === null || pt.alt === undefined || isNaN(pt.alt))
+        ? "—" : Math.round(pt.alt) + " m";
+
+    drawBars();
+    stats();
+    $("btnGeo").disabled = S.trace.length < 2;
+    $("btnCopy").disabled = S.fixes.length < 1;
+  }
+
+  function drawBars(){
+    var recent = S.fixes.slice(-MAX_BARS);
+    if (!recent.length) return;
+    var worst = Math.max.apply(null, recent.map(function(f){ return f.acc; }));
+    var max = Math.max(30, Math.ceil(worst / 10) * 10);
+    var html = "";
+    for (var i=0;i<recent.length;i++){
+      var a = recent[i].acc;
+      var h = Math.max(2, Math.round(100 * Math.min(a, max) / max));
+      var col = a <= ACC_GOOD ? "var(--good)" : a <= ACC_OK ? "var(--accent)"
+              : a <= ACC_POOR ? "var(--warn)" : "var(--bad)";
+      html += "<i style=\"height:" + h + "%;background:" + col + "\"></i>";
+    }
+    $("bars").innerHTML = html;
+    $("barsNote").textContent = recent.length + " most recent fixes";
+    $("barsMax").textContent = "top of chart = " + max + " m";
+  }
+
+  function stats(){
+    $("nfix").textContent = S.fixes.length;
+
+    var cut = Date.now() - 60000;
+    var inWin = S.fixes.filter(function(f){ return f.t >= cut; }).length;
+    var span = S.startedAt ? Math.min(60, (Date.now()-S.startedAt)/1000) : 0;
+    $("rate").textContent = span > 3 ? fmt(inWin/span, 2) + "/s" : "—";
+
+    if (S.fixes.length){
+      var accs = S.fixes.map(function(f){ return f.acc; }).slice().sort(function(a,b){ return a-b; });
+      var med = accs[Math.floor(accs.length/2)];
+      $("bestmed").textContent = Math.round(accs[0]) + " / " + Math.round(med) + " m";
+    }
+    $("drops").textContent = S.dropouts;
+    $("npts").textContent = S.trace.length;
+
+    var d = 0;
+    for (var i=1;i<S.trace.length;i++){
+      if (S.trace[i].acc > ACC_POOR) continue;
+      d += haversine(S.trace[i-1], S.trace[i]);
+    }
+    $("dist").textContent = (d/1000).toFixed(2) + " km";
+  }
+
+  setInterval(function(){
+    if (S.lastFixAt){
+      var s = (Date.now() - S.lastFixAt)/1000;
+      $("age").textContent = s < 90 ? Math.round(s) + " s" : Math.round(s/60) + " min";
+      if (S.running && s > 20) $("fixstate").textContent = "no fix for " + Math.round(s) + "s";
+    }
+    stats();
+  }, 1000);
+
+  function toggleWake(){
+    if (S.wakeLock){
+      S.wakeLock.release()["catch"](function(){});
+      S.wakeLock = null;
+      $("btnWake").textContent = "Keep screen on";
+      log("wake lock released");
+      return;
+    }
+    if (!("wakeLock" in navigator)){ log("Wake Lock API not supported on this phone"); return; }
+    navigator.wakeLock.request("screen").then(function(wl){
+      S.wakeLock = wl;
+      $("btnWake").textContent = "Screen stays on";
+      $("btnWake").className = "primary";
+      log("wake lock granted");
+      wl.addEventListener("release", function(){
+        S.wakeLock = null;
+        $("btnWake").textContent = "Keep screen on";
+        $("btnWake").className = "";
+        log("wake lock was released by the system");
+      });
+    })["catch"](function(e){ log("wake lock refused: " + e.message); });
+  }
+
+  document.addEventListener("visibilitychange", function(){
+    log("page " + (document.hidden ? "hidden (backgrounded)" : "visible again"));
+  });
+
+  function geojson(){
+    var coords = S.trace.map(function(p){ return [ +p.lon.toFixed(6), +p.lat.toFixed(6) ]; });
+    var feats = [{
+      type:"Feature",
+      properties:{
+        name:"GPS test trace",
+        device: navigator.userAgent,
+        started: S.startedAt ? new Date(S.startedAt).toISOString() : null,
+        points: S.trace.length,
+        dropouts: S.dropouts,
+        errors: S.errors
+      },
+      geometry:{ type:"LineString", coordinates: coords }
+    }];
+    for (var i=0;i<S.trace.length;i++){
+      var p = S.trace[i];
+      feats.push({
+        type:"Feature",
+        properties:{ t:new Date(p.t).toISOString(), acc:p.acc, alt:p.alt, spd:p.spd, hdg:p.hdg },
+        geometry:{ type:"Point", coordinates:[ +p.lon.toFixed(6), +p.lat.toFixed(6) ] }
+      });
+    }
+    return JSON.stringify({ type:"FeatureCollection", features: feats });
+  }
+
+  function saveTrace(){
+    var blob = new Blob([geojson()], {type:"application/geo+json"});
+    var name = "ingwelala-gps-" + new Date().toISOString().slice(0,16).replace(/[:T]/g,"-") + ".geojson";
+    var file = null;
+    try { file = new File([blob], name, {type:"application/geo+json"}); } catch(e){}
+    if (file && navigator.canShare && navigator.canShare({files:[file]})){
+      navigator.share({files:[file], title:"Ingwelala GPS trace"})
+        .then(function(){ log("trace shared"); })
+        ["catch"](function(e){ log("share cancelled: " + e.message); });
+      return;
+    }
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a); a.click(); a.parentNode.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+    log("trace downloaded as " + name);
+  }
+
+  function report(){
+    var accs = S.fixes.map(function(f){ return f.acc; }).slice().sort(function(a,b){ return a-b; });
+    var lines = [
+      "INGWELALA GPS TEST",
+      "when:      " + new Date().toISOString(),
+      "device:    " + navigator.userAgent,
+      "secure:    " + window.isSecureContext,
+      "installed: " + isStandalone(),
+      "duration:  " + (S.startedAt ? Math.round((Date.now()-S.startedAt)/60000) + " min" : "-"),
+      "fixes:     " + S.fixes.length,
+      "errors:    " + S.errors + "   dropouts: " + S.dropouts,
+      "accuracy:  best " + (accs.length?Math.round(accs[0]):"-") +
+        "m  median " + (accs.length?Math.round(accs[Math.floor(accs.length/2)]):"-") +
+        "m  worst " + (accs.length?Math.round(accs[accs.length-1]):"-") + "m",
+      "trace:     " + S.trace.length + " points",
+      "",
+      "LOG",
+      logLines.slice(0,40).join("\n")
+    ].join("\n");
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(lines).then(function(){
+        $("btnCopy").textContent = "Copied";
+        setTimeout(function(){ $("btnCopy").textContent = "Copy report"; }, 2000);
+      })["catch"](function(){ window.prompt("Copy this:", lines); });
+    } else {
+      window.prompt("Copy this:", lines);
+    }
+  }
+
+  function isStandalone(){
+    return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches)
+        || window.navigator.standalone === true;
+  }
+
+  function refreshDiag(){
+    var rows = [
+      ["Secure (HTTPS)", window.isSecureContext ? ["yes","ok"] : ["NO - GPS will not work","bd"]],
+      ["Geolocation API", ("geolocation" in navigator) ? ["available","ok"] : ["missing","bd"]],
+      ["Wake Lock API", ("wakeLock" in navigator) ? ["available","ok"] : ["not supported","wn"]],
+      ["Service worker", ("serviceWorker" in navigator) ? ["available","ok"] : ["not supported","wn"]],
+      ["Opened from home screen", isStandalone() ? ["yes","ok"] : ["no - still in the browser","wn"]],
+      ["Online", navigator.onLine ? ["yes","ok"] : ["offline","wn"]],
+      ["Screen", window.screen.width + "x" + window.screen.height +
+                 " @" + (window.devicePixelRatio||1) + "x"],
+      ["Browser", navigator.userAgent]
+    ];
+    var html = "";
+    for (var i=0;i<rows.length;i++){
+      var val = rows[i][1], cls = "";
+      if (Object.prototype.toString.call(val) === "[object Array]"){ cls = val[1]; val = val[0]; }
+      html += "<tr><td>" + rows[i][0] + "</td><td class=\"" + cls + "\">" + val + "</td></tr>";
+    }
+    $("diag").innerHTML = html;
+
+    if (navigator.permissions && navigator.permissions.query){
+      navigator.permissions.query({name:"geolocation"}).then(function(st){
+        $("diag").insertAdjacentHTML("afterbegin",
+          "<tr><td>Location permission</td><td class=\"" +
+          (st.state==="granted"?"ok":st.state==="denied"?"bd":"wn") + "\">" + st.state + "</td></tr>");
+        st.onchange = function(){ log("permission changed to " + st.state); refreshDiag(); };
+      })["catch"](function(){});
+    }
+
+    $("installNote").textContent = isStandalone()
+      ? "Running installed. This is the mode the real app will use."
+      : "Not installed yet. iPhone: Share, then Add to Home Screen. Android: menu, then Install app. Open it from the icon and run the test again - iOS only keeps the location permission for installed apps.";
+  }
+
+  $("btnStart").onclick = function(){ S.running ? stop() : start(); };
+  $("btnWake").onclick = toggleWake;
+  $("btnGeo").onclick  = saveTrace;
+  $("btnCopy").onclick = report;
+  $("btnLog").onclick = function(){
+    S.logging = !S.logging;
+    $("btnLog").textContent = S.logging ? "Recording" : "Record trace";
+    $("btnLog").className = S.logging ? "primary" : "";
+    log(S.logging ? "trace recording ON" : "trace recording paused");
+  };
+  $("btnReset").onclick = function(){
+    if (!window.confirm("Throw away this session's fixes and trace?")) return;
+    S.fixes = []; S.trace = []; S.dropouts = 0; S.errors = 0;
+    S.startedAt = S.running ? Date.now() : null; S.lastFixAt = null;
+    logLines = []; log("session reset");
+    $("bars").innerHTML = ""; $("acc").innerHTML = "—<small>m</small>";
+    $("verdict").textContent = "Not started"; $("verdict").className = "verdict";
+    stats();
+  };
+
+  window.addEventListener("online",  function(){ log("back online"); refreshDiag(); });
+  window.addEventListener("offline", function(){ log("gone offline - the page keeps working"); refreshDiag(); });
+
+  refreshDiag();
+  log("page loaded");
+
+  if ("serviceWorker" in navigator){
+    navigator.serviceWorker.register("sw.js")
+      .then(function(){ log("service worker registered - page now works offline"); })
+      ["catch"](function(e){ log("service worker failed: " + e.message); });
+  }
+})();
+</script>
+</body>
+</html>
